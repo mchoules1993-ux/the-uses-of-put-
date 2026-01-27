@@ -1,0 +1,8 @@
+{
+  "name": "put-it-to-the-test",
+  "compatibility_date": "2024-05-20",
+  "assets": {
+    "directory": "."
+  },
+  "main": "index.html"
+}
