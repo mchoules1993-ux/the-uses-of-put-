@@ -1,0 +1,446 @@
+/**
+ * ------------------------------------------------------------------
+ * SECTION 1: DATA LAYER
+ * Contains static data, configuration, and utility functions.
+ * ------------------------------------------------------------------
+ */
+
+const { useState, useEffect, useCallback } = React;
+
+const BookOpen = ({ className = "" }) => <span className={className}>📘</span>;
+const Trophy = ({ className = "" }) => <span className={className}>🏆</span>;
+const Play = ({ className = "" }) => <span className={className}>▶️</span>;
+const CheckCircle = ({ className = "" }) => <span className={className}>✅</span>;
+const XCircle = ({ className = "" }) => <span className={className}>❌</span>;
+const RotateCcw = ({ className = "" }) => <span className={className}>🔁</span>;
+
+// --- FIREBASE CONFIG ---
+const firebaseConfig = window.firebaseConfig || {};
+const hasFirebase = window.firebase && Object.keys(firebaseConfig).length > 0;
+const app = hasFirebase ? firebase.initializeApp(firebaseConfig) : null;
+const auth = hasFirebase ? firebase.auth() : null;
+const db = hasFirebase ? firebase.firestore() : null;
+const appId = window.appId || 'default-app-id';
+
+// --- CONTENT DATA ---
+const PHRASAL_VERBS = [
+  { id: 1, term: "put off", type: "verb", definition: "To delay an event or activity until a later time.", examples: ["She shouldn't put off going to the dentist.", "We put off the meeting because everyone is on leave."] },
+  { id: 2, term: "put off by", type: "verb", definition: "To make someone dislike something or to discourage them.", examples: ["The sight of blood puts me off donating.", "I was put off by his messy appearance."] },
+  { id: 3, term: "put someone off", type: "verb", definition: "To delay seeing someone or stop them until later.", examples: ["I'd rather put them off than meet today.", "I had to put Trang off due to a meeting."] },
+  { id: 4, term: "put up with", type: "verb", definition: "To tolerate someone or something unpleasant.", examples: ["I can't put up with the karaoke noise.", "It's cold, but I'll put up with it."] },
+  { id: 5, term: "put an end to", type: "phrase", definition: "To make something stop happening or existing.", examples: ["How can we put an end to the conflict?", "The team put an end to their losing streak."] },
+  { id: 6, term: "put your feet up", type: "idiom", definition: "To relax, chill, literally resting feet on something.", examples: ["I'm putting my feet up this weekend.", "Everyone is away, so I'll put my feet up."] },
+  { id: 7, term: "put in a good word", type: "phrase", definition: "To say positive things about someone (often for a job).", examples: ["I can put in a good word for you with HR.", "She put in a good word for me with the boss."] },
+  { id: 8, term: "put heads together", type: "idiom", definition: "When two or more people plan or solve something together.", examples: ["We'll figure it out if we put our heads together.", "They solved it after putting their heads together."] },
+  { id: 9, term: "put two and two together", type: "idiom", definition: "To guess the truth from what you see or hear.", examples: ["I saw them holding hands and put two and two together."] },
+  { id: 10, term: "put down (object)", type: "verb", definition: "To place something on a surface or stop carrying someone.", examples: ["I put my bags down.", "Put me down, Daddy!"] },
+  { id: 11, term: "put down (person)", type: "verb", definition: "To criticize someone to make them feel silly or unimportant.", examples: ["Why did you put me down in front of the class?", "The teacher put me down for not knowing the alphabet."] },
+];
+
+// --- UTILITIES ---
+const getRandomItems = (arr, n) => {
+  const shuffled = [...arr].sort(() => 0.5 - Math.random());
+  return shuffled.slice(0, n);
+};
+
+/**
+ * ------------------------------------------------------------------
+ * SECTION 2: DESIGN SYSTEM
+ * Pure functional components for UI (Buttons, Cards, Layouts).
+ * ------------------------------------------------------------------
+ */
+
+const Card = ({ children, className = "" }) => (
+  <div className={`bg-white rounded-xl shadow-lg border border-slate-100 overflow-hidden ${className}`}>
+    {children}
+  </div>
+);
+
+const Button = ({ onClick, variant = "primary", className = "", children, disabled = false }) => {
+  const variants = {
+    primary: "bg-indigo-600 hover:bg-indigo-700 text-white shadow-md hover:shadow-lg",
+    secondary: "bg-white hover:bg-slate-50 text-slate-700 border border-slate-200",
+    danger: "bg-red-500 hover:bg-red-600 text-white",
+    success: "bg-emerald-500 hover:bg-emerald-600 text-white",
+    outline: "border-2 border-indigo-600 text-indigo-600 hover:bg-indigo-50"
+  };
+  
+  return (
+    <button 
+      onClick={onClick}
+      disabled={disabled}
+      className={`px-6 py-3 rounded-lg font-semibold transition-all duration-200 active:scale-95 disabled:opacity-50 disabled:pointer-events-none flex items-center justify-center gap-2 ${variants[variant]} ${className}`}
+    >
+      {children}
+    </button>
+  );
+};
+
+const FeedbackOverlay = ({ type, msg }) => (
+  <div className={`p-4 ${type === 'correct' ? 'bg-emerald-100 text-emerald-800' : 'bg-red-100 text-red-800'} flex items-center justify-center gap-3 animate-in slide-in-from-bottom-2`}>
+    {type === 'correct' ? <CheckCircle className="w-5 h-5" /> : <XCircle className="w-5 h-5" />}
+    <span className="font-semibold">{msg}</span>
+  </div>
+);
+
+const ProgressBar = ({ current, total }) => (
+  <div className="w-full bg-slate-200 h-2 rounded-full mb-8 overflow-hidden">
+    <div 
+      className="bg-indigo-600 h-full transition-all duration-500 ease-out" 
+      style={{ width: `${(current / total) * 100}%` }}
+    />
+  </div>
+);
+
+/**
+ * ------------------------------------------------------------------
+ * SECTION 3: LOGIC KERNEL (CUSTOM HOOKS)
+ * Encapsulated state and logic. No UI rendering here.
+ * ------------------------------------------------------------------
+ */
+
+// Hook 1: Authentication Logic
+const useAuth = () => {
+  const [user, setUser] = useState(null);
+
+  useEffect(() => {
+    if (!auth) {
+      setUser({ uid: 'local' });
+      return;
+    }
+
+    const initAuth = async () => {
+      if (window.initialAuthToken) {
+        await auth.signInWithCustomToken(window.initialAuthToken);
+      } else {
+        await auth.signInAnonymously();
+      }
+    };
+    initAuth();
+    return auth.onAuthStateChanged(setUser);
+  }, []);
+
+  return user;
+};
+
+// Hook 2: Leaderboard Data Logic
+const useLeaderboard = (user) => {
+  const [data, setData] = useState([]);
+
+  useEffect(() => {
+    if (!user) return;
+    if (!db) {
+      setData([]);
+      return;
+    }
+
+    const colRef = db.collection('artifacts')
+      .doc(appId)
+      .collection('public')
+      .doc('data')
+      .collection('leaderboard');
+
+    const unsubscribe = colRef.onSnapshot(
+      (snapshot) => {
+        const rawData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+        const sorted = rawData.sort((a, b) => b.score - a.score).slice(0, 10);
+        setData(sorted);
+      },
+      (error) => console.error("Leaderboard error:", error)
+    );
+    return () => unsubscribe();
+  }, [user]);
+
+  const saveScore = async (score) => {
+    if (db && user && score > 0) {
+      const colRef = db.collection('artifacts')
+        .doc(appId)
+        .collection('public')
+        .doc('data')
+        .collection('leaderboard');
+
+      await colRef.add({
+        name: `Learner ${user.uid.substr(0, 4)}`,
+        score: score,
+        timestamp: firebase.firestore.FieldValue.serverTimestamp()
+      });
+    }
+  };
+
+  return { data, saveScore };
+};
+
+// Hook 3: The Core Game Engine
+const useGameEngine = (onGameEnd) => {
+  const [questions, setQuestions] = useState([]);
+  const [currentIndex, setCurrentIndex] = useState(0);
+  const [score, setScore] = useState(0);
+  const [streak, setStreak] = useState(0);
+  const [feedback, setFeedback] = useState(null);
+  const [isPlaying, setIsPlaying] = useState(false);
+
+  // Logic: Generate Questions
+  const generateQuestions = useCallback(() => {
+    const newQuestions = [];
+    const sourceData = getRandomItems(PHRASAL_VERBS, 10);
+
+    sourceData.forEach(item => {
+      const isGapFill = Math.random() > 0.5;
+      const distractors = getRandomItems(PHRASAL_VERBS.filter(pv => pv.id !== item.id), 3).map(pv => pv.term);
+
+      if (isGapFill && item.examples.length > 0) {
+        const example = item.examples[0];
+        const regex = new RegExp(item.term.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'gi');
+        
+        if (regex.test(example)) {
+           newQuestions.push({
+            type: 'gap-fill',
+            question: example.replace(regex, '_______'),
+            correct: item.term,
+            options: getRandomItems([...distractors, item.term], 4),
+            explanation: item.definition
+          });
+        } else {
+          newQuestions.push({
+            type: 'definition',
+            question: `What is the meaning of "${item.term}"?`,
+            correct: item.definition,
+            options: getRandomItems([...distractors.map(d => {
+               const original = PHRASAL_VERBS.find(p => p.term === d);
+               return original ? original.definition : "To do something.";
+            }), item.definition], 4),
+            explanation: `Correct! "${item.term}" means: ${item.definition}`
+          });
+        }
+      } else {
+        newQuestions.push({
+          type: 'definition',
+          question: `Which phrase means: "${item.definition}"?`,
+          correct: item.term,
+          options: getRandomItems([...distractors, item.term], 4),
+          explanation: item.examples[0] || item.definition
+        });
+      }
+    });
+    return newQuestions;
+  }, []);
+
+  const startGame = () => {
+    setQuestions(generateQuestions());
+    setScore(0);
+    setStreak(0);
+    setCurrentIndex(0);
+    setFeedback(null);
+    setIsPlaying(true);
+  };
+
+  const submitAnswer = (selected) => {
+    const currentQ = questions[currentIndex];
+    const isCorrect = selected === currentQ.correct;
+
+    if (isCorrect) {
+      const streakBonus = Math.min(streak * 10, 50);
+      setScore(s => s + 100 + streakBonus);
+      setStreak(s => s + 1);
+      setFeedback({ type: 'correct', msg: 'Spot on! ' + (streak > 1 ? `Streak x${streak}!` : ''), selected });
+    } else {
+      setStreak(0);
+      setFeedback({ type: 'incorrect', msg: `Not quite. The correct answer was: "${currentQ.correct}"`, selected });
+    }
+
+    setTimeout(() => {
+      setFeedback(null);
+      if (currentIndex < questions.length - 1) {
+        setCurrentIndex(c => c + 1);
+      } else {
+        setIsPlaying(false);
+        onGameEnd(score + (isCorrect ? 100 + Math.min(streak * 10, 50) : 0)); // Pass final score
+      }
+    }, 2000);
+  };
+
+  return {
+    questions,
+    currentIndex,
+    score,
+    feedback,
+    isPlaying,
+    startGame,
+    submitAnswer
+  };
+};
+
+/**
+ * ------------------------------------------------------------------
+ * SECTION 4: VIEW LAYER (APP COMPONENT)
+ * Orchestrates the UI using the hooks above.
+ * ------------------------------------------------------------------
+ */
+
+function App() {
+  const [view, setView] = useState('start'); // start, game, result, leaderboard, learn
+  
+  // Connect Hooks
+  const user = useAuth();
+  const { data: leaderboardData, saveScore } = useLeaderboard(user);
+  
+  // Game Engine acts as the bridge between Logic and View
+  const { 
+    questions, 
+    currentIndex, 
+    score, 
+    feedback, 
+    isPlaying, 
+    startGame: engineStart, 
+    submitAnswer 
+  } = useGameEngine((finalScore) => {
+    // Callback when game ends
+    saveScore(finalScore);
+    setView('result');
+  });
+
+  const handleStartGame = () => {
+    engineStart();
+    setView('game');
+  };
+
+  // --- SUB-VIEWS ---
+
+  const StartView = () => (
+    <div className="text-center space-y-8 py-12 px-6">
+      <div className="space-y-4">
+        <div className="inline-block p-4 bg-indigo-100 rounded-full mb-4">
+          <BookOpen className="w-12 h-12 text-indigo-600" />
+        </div>
+        <h1 className="text-4xl font-extrabold text-slate-900 tracking-tight">Put It To The Test</h1>
+        <p className="text-lg text-slate-600 max-w-md mx-auto">
+          Master the tricky uses of "put" in English. 10 questions, speed bonuses, and global leaderboards.
+        </p>
+      </div>
+      <div className="flex flex-col sm:flex-row gap-4 justify-center">
+        <Button onClick={handleStartGame} className="w-full sm:w-auto"><Play className="w-5 h-5" /> Start Quiz</Button>
+        <Button variant="secondary" onClick={() => setView('learn')} className="w-full sm:w-auto"><BookOpen className="w-5 h-5" /> Study Sheet</Button>
+        <Button variant="secondary" onClick={() => setView('leaderboard')} className="w-full sm:w-auto"><Trophy className="w-5 h-5" /> Leaderboard</Button>
+      </div>
+    </div>
+  );
+
+  const GameView = () => {
+    if (!questions.length) return <div>Loading...</div>;
+    const q = questions[currentIndex];
+
+    return (
+      <div className="max-w-2xl mx-auto p-4 w-full">
+        <div className="flex justify-between items-center mb-6 text-sm font-semibold text-slate-500 uppercase tracking-wider">
+          <span>Question {currentIndex + 1}/{questions.length}</span>
+          <span>Score: {score}</span>
+        </div>
+        <ProgressBar current={currentIndex} total={questions.length} />
+        <Card className="mb-6">
+          <div className="p-8">
+            <h2 className="text-2xl font-bold text-slate-800 mb-6 leading-relaxed">{q.question}</h2>
+            <div className="grid gap-3">
+              {q.options.map((opt, idx) => (
+                <button
+                  key={idx}
+                  onClick={() => !feedback && submitAnswer(opt)}
+                  disabled={!!feedback}
+                  className={`
+                    w-full text-left p-4 rounded-lg border-2 font-medium transition-all
+                    ${feedback 
+                      ? opt === q.correct 
+                        ? 'border-emerald-500 bg-emerald-50 text-emerald-700' 
+                        : opt === feedback.selected 
+                          ? 'border-red-500 bg-red-50 text-red-700'
+                          : 'border-slate-100 text-slate-400'
+                      : 'border-slate-200 hover:border-indigo-400 hover:bg-indigo-50 text-slate-700'
+                    }
+                  `}
+                >
+                  {opt}
+                </button>
+              ))}
+            </div>
+          </div>
+          {feedback && <FeedbackOverlay type={feedback.type} msg={feedback.msg} />}
+        </Card>
+      </div>
+    );
+  };
+
+  const ResultView = () => (
+    <div className="text-center py-12 px-6">
+      <div className="inline-block p-4 bg-yellow-100 rounded-full mb-6 animate-bounce">
+        <Trophy className="w-16 h-16 text-yellow-600" />
+      </div>
+      <h2 className="text-3xl font-bold text-slate-900 mb-2">Quiz Complete!</h2>
+      <div className="text-6xl font-black text-indigo-600 mb-12 tracking-tighter">
+        {score} <span className="text-xl text-slate-400 font-normal">pts</span>
+      </div>
+      <div className="flex justify-center gap-4">
+        <Button onClick={handleStartGame}><RotateCcw className="w-5 h-5" /> Play Again</Button>
+        <Button variant="outline" onClick={() => setView('start')}>Back to Home</Button>
+      </div>
+    </div>
+  );
+
+  const LeaderboardView = () => (
+    <div className="max-w-md mx-auto p-4 w-full">
+      <div className="flex items-center justify-between mb-6">
+        <h2 className="text-2xl font-bold text-slate-900 flex items-center gap-2">
+          <Trophy className="w-6 h-6 text-yellow-500" /> Leaderboard
+        </h2>
+        <button onClick={() => setView('start')} className="text-slate-400 hover:text-slate-600">Close</button>
+      </div>
+      <Card className="divide-y divide-slate-100">
+        {leaderboardData.length === 0 ? (
+          <div className="p-8 text-center text-slate-500">No scores yet.</div>
+        ) : (
+          leaderboardData.map((entry, idx) => (
+            <div key={idx} className="flex items-center justify-between p-4 hover:bg-slate-50">
+              <div className="flex items-center gap-4">
+                <span className={`w-8 h-8 flex items-center justify-center rounded-full font-bold ${idx < 3 ? 'bg-yellow-100 text-yellow-700' : 'bg-slate-100'}`}>{idx + 1}</span>
+                <span className="font-medium text-slate-800">{entry.name}</span>
+              </div>
+              <span className="font-bold text-indigo-600">{entry.score}</span>
+            </div>
+          ))
+        )}
+      </Card>
+      <div className="mt-6 text-center"><Button variant="outline" onClick={() => setView('start')}>Back</Button></div>
+    </div>
+  );
+
+  const LearnView = () => (
+    <div className="max-w-2xl mx-auto p-4 h-full w-full">
+      <div className="flex items-center justify-between mb-6">
+        <h2 className="text-2xl font-bold text-slate-900">Cheat Sheet</h2>
+        <Button variant="outline" onClick={() => setView('start')}>Close</Button>
+      </div>
+      <div className="grid gap-4 pb-12">
+        {PHRASAL_VERBS.map(item => (
+          <Card key={item.id} className="p-5 border-l-4 border-l-indigo-500">
+            <h3 className="text-lg font-bold text-indigo-900 mb-1">{item.term}</h3>
+            <p className="text-slate-600 italic mb-3 text-sm">{item.definition}</p>
+            <div className="bg-slate-50 p-3 rounded text-sm text-slate-700">"{item.examples[0]}"</div>
+          </Card>
+        ))}
+      </div>
+    </div>
+  );
+
+  // --- MAIN RENDER SWITCH ---
+  return (
+    <div className="min-h-screen bg-slate-50 font-sans text-slate-900 flex flex-col items-center justify-center">
+      {view === 'start' && <StartView />}
+      {view === 'game' && <GameView />}
+      {view === 'result' && <ResultView />}
+      {view === 'leaderboard' && <LeaderboardView />}
+      {view === 'learn' && <LearnView />}
+      <div className="fixed bottom-4 text-slate-400 text-xs">MVP v1.0 • Refactored Architecture</div>
+    </div>
+  );
+}
+
+const root = ReactDOM.createRoot(document.getElementById('root'));
+root.render(<App />);
