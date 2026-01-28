@@ -1,7 +1,23 @@
-{
-  "name": "put-it-to-the-test",
-  "compatibility_date": "2024-05-20",
-  "assets": {
-    "directory": "."
-  }
-}
+name = "the-uses-of-put"
+main = "worker.js"
+compatibility_date = "2024-01-01"
+
+# KV Namespace for storing game data
+# After creating the KV namespace in Cloudflare dashboard,
+# update the 'id' value with your actual namespace ID
+kv_namespaces = [
+  { binding = "GAME_DATA", id = "YOUR_KV_NAMESPACE_ID" }
+]
+
+# Environment variables (use Cloudflare dashboard for secrets)
+[vars]
+ENVIRONMENT = "production"
+
+# Cron trigger - runs daily at midnight UTC to refresh examples
+[triggers]
+crons = ["0 0 * * *"]
+
+# Optional: Custom domain configuration
+# Uncomment and configure if using a custom domain
+# [env.production]
+# route = "https://api.yourdomain.com/*"
