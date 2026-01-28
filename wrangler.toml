@@ -21,3 +21,7 @@ crons = ["0 0 * * *"]
 # Uncomment and configure if using a custom domain
 # [env.production]
 # route = "https://api.yourdomain.com/*"
+# ADD THIS RULE TO THE BOTTOM:
+[[rules]]
+type = "Text"
+globs = ["**/*.html"]
