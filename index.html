@@ -73,7 +73,9 @@
       window.firebaseConfig = {}; 
       window.initialAuthToken = "";
       window.appId = "local-dev-app";
-      // Point this to your deployed worker URL if you have one
+      
+      // IMPORTANT: After deploying your worker, paste the URL here!
+      // Example: "https://put-it-to-the-test-backend.yourname.workers.dev"
       window.backendUrl = ""; 
     </script>
 
@@ -83,7 +85,7 @@
       import { initializeApp } from 'firebase/app';
       import { getAuth, signInAnonymously, onAuthStateChanged, signInWithCustomToken } from 'firebase/auth';
       import { getFirestore, collection, addDoc, onSnapshot, serverTimestamp } from 'firebase/firestore';
-      import { BookOpen, Trophy, Play, CheckCircle, XCircle, RotateCcw, RefreshCw, ArrowRight, ArrowLeft, Quote } from 'lucide-react';
+      import { BookOpen, Trophy, Play, CheckCircle, XCircle, RotateCcw, RefreshCw, ArrowRight, ArrowLeft, Quote, Sparkles } from 'lucide-react';
 
       /**
        * ------------------------------------------------------------------
@@ -126,7 +128,6 @@
         { id: 11, term: "put down (person)", type: "verb", definition: "To criticize someone to make them feel silly or unimportant.", examples: ["Why did you put me down in front of the class?", "The teacher put me down for not knowing the alphabet."] },
       ];
 
-      // [NEW] Reading Passages
       const READING_PASSAGES = [
         {
           title: "The Office Party",
@@ -179,7 +180,6 @@
         );
       };
 
-      // [UPDATED] FeedbackOverlay now has Next AND Previous Buttons
       const FeedbackOverlay = ({ type, msg, examples, onNext, onPrev, isFirst }) => (
         <div className={`p-6 ${type === 'correct' ? 'bg-emerald-50 border-t-4 border-emerald-500' : 'bg-red-50 border-t-4 border-red-500'} animate-in slide-in-from-bottom-2`}>
           <div className="flex items-center gap-3 mb-4">
@@ -287,7 +287,6 @@
         const [currentIndex, setCurrentIndex] = useState(0);
         const [score, setScore] = useState(0);
         const [streak, setStreak] = useState(0);
-        // [UPDATED] Use History to store answers per index { [index]: feedbackObj }
         const [history, setHistory] = useState({});
         const [isPlaying, setIsPlaying] = useState(false);
 
@@ -308,7 +307,6 @@
                   correct: item.term,
                   options: getRandomItems([...distractors, item.term], 4),
                   explanation: item.definition,
-                  // [UPDATED] Store original example to filter it out later
                   originalExample: example
                 });
               } else {
@@ -346,7 +344,6 @@
         };
 
         const submitAnswer = (selected) => {
-          // Prevent re-answering
           if (history[currentIndex]) return;
 
           const currentQ = questions[currentIndex];
@@ -355,10 +352,8 @@
           const correctItem = gameData.find(p => p.term === currentQ.correct);
           let allExamples = correctItem?.examples || [];
 
-          // [UPDATED] Filter out the example used in the question if possible
           if (currentQ.type === 'gap-fill' && currentQ.originalExample) {
              const others = allExamples.filter(e => e !== currentQ.originalExample);
-             // Only use filtered list if it's not empty (fallback to original if it was the only one)
              if (others.length > 0) allExamples = others;
           }
           const displayExamples = allExamples.slice(0, 2);
@@ -384,7 +379,6 @@
             examples: displayExamples
           };
 
-          // Save feedback to history
           setHistory(prev => ({
             ...prev,
             [currentIndex]: feedbackObj
@@ -410,7 +404,7 @@
           questions, 
           currentIndex, 
           score, 
-          feedback: history[currentIndex], // Derive feedback from history
+          feedback: history[currentIndex], 
           isPlaying, 
           startGame, 
           submitAnswer, 
@@ -432,28 +426,30 @@
         const user = useAuth();
         const { data: leaderboardData, saveScore } = useLeaderboard(user);
         
-        // Fetch dynamic content on mount
-        useEffect(() => {
-          const fetchDailyContent = async () => {
-            if (!window.backendUrl) return; 
-            try {
-              setIsFetching(true);
-              const res = await fetch(window.backendUrl);
-              if (res.ok) {
-                const dailyData = await res.json();
-                if (Array.isArray(dailyData) && dailyData.length > 0) {
-                  setGameData(dailyData);
-                  console.log("Loaded fresh daily content!");
-                }
+        const regenerateQuestions = async () => {
+          if (!window.backendUrl) {
+            alert("Backend URL not configured in index.html");
+            return;
+          }
+          try {
+            setIsFetching(true);
+            const res = await fetch(window.backendUrl, { method: 'POST' }); // Use POST to trigger generation
+            if (res.ok) {
+              const newData = await res.json();
+              if (Array.isArray(newData) && newData.length > 0) {
+                setGameData(newData);
+                alert("Questions regenerated successfully!");
               }
-            } catch (e) {
-              console.warn("Using static fallback data:", e);
-            } finally {
-              setIsFetching(false);
+            } else {
+              throw new Error("Backend returned error");
             }
-          };
-          fetchDailyContent();
-        }, []);
+          } catch (e) {
+            console.error(e);
+            alert("Failed to regenerate questions. Using offline data.");
+          } finally {
+            setIsFetching(false);
+          }
+        };
 
         const { 
           questions, currentIndex, score, feedback, isPlaying, 
@@ -481,12 +477,10 @@
               </p>
               
               <div className="flex justify-center gap-2 text-xs font-semibold">
-                {isFetching ? (
-                  <span className="text-slate-400 flex items-center gap-1"><RefreshCw className="w-3 h-3 animate-spin"/> Checking for updates...</span>
-                ) : gameData === STATIC_DATA ? (
-                  <span className="text-slate-400">Using Offline Data</span>
+                 {gameData === STATIC_DATA ? (
+                  <span className="text-slate-400">Default Questions</span>
                 ) : (
-                  <span className="text-emerald-600 flex items-center gap-1"><RefreshCw className="w-3 h-3"/> Daily Context Loaded</span>
+                  <span className="text-emerald-600 flex items-center gap-1"><Sparkles className="w-3 h-3"/> AI Generated Questions</span>
                 )}
               </div>
 
@@ -499,7 +493,18 @@
 
             <div className="flex flex-col sm:flex-row gap-4 justify-center mb-12">
               <Button onClick={handleStartGame} className="w-full sm:w-auto"><Play className="w-5 h-5" /> Start Quiz</Button>
-              <Button variant="secondary" onClick={() => setView('learn')} className="w-full sm:w-auto"><BookOpen className="w-5 h-5" /> Study Sheet</Button>
+              
+              {/* [NEW] Regenerate Button */}
+              <Button 
+                onClick={regenerateQuestions} 
+                variant="outline" 
+                className="w-full sm:w-auto"
+                disabled={isFetching}
+              >
+                {isFetching ? <RefreshCw className="w-5 h-5 animate-spin"/> : <Sparkles className="w-5 h-5" />} 
+                {isFetching ? "Generating..." : "New Questions"}
+              </Button>
+
               <Button variant="secondary" onClick={() => setView('leaderboard')} className="w-full sm:w-auto"><Trophy className="w-5 h-5" /> Leaderboard</Button>
             </div>
 
@@ -513,7 +518,6 @@
                   <div key={idx} className="bg-slate-50 p-5 rounded-lg border border-slate-200 hover:border-indigo-300 transition-colors">
                     <h4 className="font-bold text-indigo-900 mb-2 text-sm uppercase tracking-wide">{passage.title}</h4>
                     <p className="text-slate-600 text-sm leading-relaxed whitespace-pre-line">
-                      {/* React way to render bold markdown roughly */}
                       {passage.content.split('**').map((part, i) => 
                         i % 2 === 1 ? <span key={i} className="font-bold text-indigo-600 bg-indigo-50 px-1 rounded">{part}</span> : part
                       )}
@@ -521,6 +525,12 @@
                   </div>
                 ))}
               </div>
+            </div>
+            
+            <div className="mt-8 flex justify-center">
+               <Button variant="ghost" onClick={() => setView('learn')} className="text-slate-400 hover:text-indigo-500 text-sm">
+                 View Cheat Sheet
+               </Button>
             </div>
           </div>
         );
@@ -550,7 +560,6 @@
                         </button>
                       ))}
                     </div>
-                    {/* [UPDATED] Previous button in Question View */}
                     <div className="flex justify-start">
                       <Button onClick={prevQuestion} variant="ghost" disabled={currentIndex === 0} className="text-sm px-2">
                          <ArrowLeft className="w-4 h-4" /> Previous
@@ -646,7 +655,7 @@
             {view === 'result' && <ResultView />}
             {view === 'leaderboard' && <LeaderboardView />}
             {view === 'learn' && <LearnView />}
-            <div className="fixed bottom-4 text-slate-400 text-xs">MVP v1.2 • Stories & Manual Next</div>
+            <div className="fixed bottom-4 text-slate-400 text-xs">MVP v1.3 • AI Regen & Nav</div>
           </div>
         );
       }
