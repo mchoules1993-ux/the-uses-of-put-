@@ -6,7 +6,7 @@
     <title>Put It To The Test</title>
     <script src="https://cdn.tailwindcss.com"></script>
     
-    <!-- Import Map: Defines where the browser finds 'react', 'firebase', etc. -->
+    <!-- Import Map -->
     <script type="importmap">
       {
         "imports": {
@@ -20,11 +20,9 @@
       }
     </script>
     
-    <!-- Babel: Compiles JSX in the browser -->
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
 
     <style>
-      /* Simple spinner for the loading state */
       .loader {
         border: 4px solid #f3f3f3;
         border-top: 4px solid #4f46e5;
@@ -50,14 +48,12 @@
   </head>
   <body class="bg-slate-50">
     
-    <!-- Error Display (Hidden by default) -->
     <div id="error-container">
       <strong>Application Error:</strong>
       <pre id="error-message"></pre>
       <p>Check the console (F12) for more details.</p>
     </div>
 
-    <!-- Root Element with Loading State -->
     <div id="root">
       <div class="text-center pt-20">
         <div class="loader"></div>
@@ -66,7 +62,6 @@
     </div>
 
     <script>
-      // Global Error Handler to catch "Blank Page" issues
       window.onerror = function(msg, url, lineNo, columnNo, error) {
         document.getElementById('root').style.display = 'none';
         document.getElementById('error-container').style.display = 'block';
@@ -74,33 +69,21 @@
         return false;
       };
 
-      // Mock global configs
+      // --- CONFIGURATION ---
       window.firebaseConfig = {}; 
       window.initialAuthToken = "";
       window.appId = "local-dev-app";
+      // Point this to your deployed worker URL if you have one
+      window.backendUrl = ""; 
     </script>
 
-    <!-- Main Application Code -->
     <script type="text/babel" data-type="module">
       import React, { useState, useEffect, useCallback } from 'react';
       import { createRoot } from 'react-dom/client';
       import { initializeApp } from 'firebase/app';
-      import { 
-        getAuth, 
-        signInAnonymously, 
-        onAuthStateChanged,
-        signInWithCustomToken
-      } from 'firebase/auth';
-      import { 
-        getFirestore, 
-        collection, 
-        addDoc, 
-        onSnapshot, 
-        serverTimestamp 
-      } from 'firebase/firestore';
-      import { 
-        BookOpen, Trophy, Play, CheckCircle, XCircle, RotateCcw
-      } from 'lucide-react';
+      import { getAuth, signInAnonymously, onAuthStateChanged, signInWithCustomToken } from 'firebase/auth';
+      import { getFirestore, collection, addDoc, onSnapshot, serverTimestamp } from 'firebase/firestore';
+      import { BookOpen, Trophy, Play, CheckCircle, XCircle, RotateCcw, RefreshCw, ArrowRight, Quote } from 'lucide-react';
 
       /**
        * ------------------------------------------------------------------
@@ -108,19 +91,14 @@
        * ------------------------------------------------------------------
        */
 
-      // Robust Initialization with Mock Mode Fallback
       let app, auth, db;
       let isMockMode = false;
 
       try {
         const config = window.firebaseConfig || {};
-        // Check if config has the required API key
         if (!config.apiKey) {
-          // If running locally or without keys, force Mock Mode intentionally
-          // throw new Error("Missing Firebase API Key"); 
-          // Instead of throwing, we just set the flag to TRUE silently
           isMockMode = true;
-          console.log("No API Key found. Using Local Mock Mode.");
+          console.log("No Firebase API Key found. Using Local Mock Mode.");
         } else {
           app = initializeApp(config);
           auth = getAuth(app);
@@ -133,8 +111,8 @@
 
       const appId = window.appId || 'default-app-id';
 
-      // Content Data
-      const PHRASAL_VERBS = [
+      // STATIC FALLBACK DATA
+      const STATIC_DATA = [
         { id: 1, term: "put off", type: "verb", definition: "To delay an event or activity until a later time.", examples: ["She shouldn't put off going to the dentist.", "We put off the meeting because everyone is on leave."] },
         { id: 2, term: "put off by", type: "verb", definition: "To make someone dislike something or to discourage them.", examples: ["The sight of blood puts me off donating.", "I was put off by his messy appearance."] },
         { id: 3, term: "put someone off", type: "verb", definition: "To delay seeing someone or stop them until later.", examples: ["I'd rather put them off than meet today.", "I had to put Trang off due to a meeting."] },
@@ -146,6 +124,22 @@
         { id: 9, term: "put two and two together", type: "idiom", definition: "To guess the truth from what you see or hear.", examples: ["I saw them holding hands and put two and two together."] },
         { id: 10, term: "put down (object)", type: "verb", definition: "To place something on a surface or stop carrying someone.", examples: ["I put my bags down.", "Put me down, Daddy!"] },
         { id: 11, term: "put down (person)", type: "verb", definition: "To criticize someone to make them feel silly or unimportant.", examples: ["Why did you put me down in front of the class?", "The teacher put me down for not knowing the alphabet."] },
+      ];
+
+      // [NEW] Reading Passages
+      const READING_PASSAGES = [
+        {
+          title: "The Office Party",
+          content: "I wanted to **put off** the office party because I was so busy, but my boss wouldn't **put up with** any delays. We all **put our heads together** to plan the menu. I decided to **put in a good word** for the new catering company my friend started."
+        },
+        {
+          title: "A Quiet Weekend",
+          content: "After a long week, I just want to go home and **put my feet up**. The construction noise next door was hard to **put up with**, but I finally went over and asked them to **put an end to** the racket. They were nice about it."
+        },
+        {
+          title: "The Misunderstanding",
+          content: "When I saw them whispering, I **put two and two together** and assumed they were dating. But I was wrong! He was just helping her **put down** some heavy boxes. I felt bad for assuming, I hope I didn't **put them down** by making a silly joke about it."
+        }
       ];
 
       const getRandomItems = (arr, n) => {
@@ -171,7 +165,8 @@
           secondary: "bg-white hover:bg-slate-50 text-slate-700 border border-slate-200",
           danger: "bg-red-500 hover:bg-red-600 text-white",
           success: "bg-emerald-500 hover:bg-emerald-600 text-white",
-          outline: "border-2 border-indigo-600 text-indigo-600 hover:bg-indigo-50"
+          outline: "border-2 border-indigo-600 text-indigo-600 hover:bg-indigo-50",
+          ghost: "text-slate-500 hover:bg-slate-100 hover:text-indigo-600"
         };
         return (
           <button 
@@ -184,10 +179,32 @@
         );
       };
 
-      const FeedbackOverlay = ({ type, msg }) => (
-        <div className={`p-4 ${type === 'correct' ? 'bg-emerald-100 text-emerald-800' : 'bg-red-100 text-red-800'} flex items-center justify-center gap-3 animate-in slide-in-from-bottom-2`}>
-          {type === 'correct' ? <CheckCircle className="w-5 h-5" /> : <XCircle className="w-5 h-5" />}
-          <span className="font-semibold">{msg}</span>
+      // [UPDATED] FeedbackOverlay now has Next Button and shows multiple examples
+      const FeedbackOverlay = ({ type, msg, examples, onNext }) => (
+        <div className={`p-6 ${type === 'correct' ? 'bg-emerald-50 border-t-4 border-emerald-500' : 'bg-red-50 border-t-4 border-red-500'} animate-in slide-in-from-bottom-2`}>
+          <div className="flex items-center gap-3 mb-4">
+            {type === 'correct' ? <CheckCircle className="w-6 h-6 text-emerald-600" /> : <XCircle className="w-6 h-6 text-red-600" />}
+            <span className={`font-bold text-lg ${type === 'correct' ? 'text-emerald-800' : 'text-red-800'}`}>{msg}</span>
+          </div>
+          
+          {examples && examples.length > 0 && (
+            <div className="space-y-3 mb-6">
+              <h4 className="text-xs font-bold uppercase tracking-wider text-slate-500">Examples in Context:</h4>
+              {examples.map((ex, i) => (
+                <div key={i} className="flex gap-2 text-sm text-slate-700 italic bg-white/60 p-2 rounded border border-black/5">
+                  <span className="text-indigo-400 font-serif">"</span>
+                  {ex}
+                  <span className="text-indigo-400 font-serif">"</span>
+                </div>
+              ))}
+            </div>
+          )}
+
+          <div className="flex justify-end">
+             <Button onClick={onNext} variant={type === 'correct' ? 'success' : 'primary'}>
+               Next Question <ArrowRight className="w-4 h-4" />
+             </Button>
+          </div>
         </div>
       );
 
@@ -210,18 +227,12 @@
         const [user, setUser] = useState(null);
         useEffect(() => {
           if (isMockMode) {
-            // Simulate an authenticated user immediately in mock mode
-            console.log("Mock Mode: User signed in.");
             setUser({ uid: 'mock-user-12345', isAnonymous: true });
             return;
           }
-
           const initAuth = async () => {
-            if (window.initialAuthToken) {
-              await signInWithCustomToken(auth, window.initialAuthToken);
-            } else {
-              await signInAnonymously(auth);
-            }
+            if (window.initialAuthToken) await signInWithCustomToken(auth, window.initialAuthToken);
+            else await signInAnonymously(auth);
           };
           initAuth();
           return onAuthStateChanged(auth, setUser);
@@ -231,55 +242,31 @@
 
       const useLeaderboard = (user) => {
         const [data, setData] = useState([]);
-
-        // Fetch Data Effect
         useEffect(() => {
           if (!user) return;
-
           if (isMockMode) {
-            // MOCK: Read from LocalStorage
             const stored = localStorage.getItem('mockLeaderboard');
             const mockData = stored ? JSON.parse(stored) : [];
-            const sorted = mockData.sort((a, b) => b.score - a.score).slice(0, 10);
-            setData(sorted);
+            setData(mockData.sort((a, b) => b.score - a.score).slice(0, 10));
             return;
           }
-
-          // REAL: Firestore Listener
           const colRef = collection(db, 'artifacts', appId, 'public', 'data', 'leaderboard');
-          const unsubscribe = onSnapshot(colRef, 
-            (snapshot) => {
-              const rawData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-              const sorted = rawData.sort((a, b) => b.score - a.score).slice(0, 10);
-              setData(sorted);
-            },
-            (error) => console.error("Leaderboard error:", error)
-          );
-          return () => unsubscribe();
+          return onSnapshot(colRef, (snapshot) => {
+            const rawData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+            setData(rawData.sort((a, b) => b.score - a.score).slice(0, 10));
+          }, console.error);
         }, [user]);
 
-        // Save Score Function
         const saveScore = async (score) => {
           if (user && score > 0) {
             if (isMockMode) {
-              // MOCK: Save to LocalStorage
-              const newEntry = {
-                name: `Learner ${user.uid.substr(0, 4)}`,
-                score: score,
-                timestamp: Date.now()
-              };
               const stored = localStorage.getItem('mockLeaderboard');
               const currentData = stored ? JSON.parse(stored) : [];
-              currentData.push(newEntry);
+              currentData.push({ name: `Learner ${user.uid.substr(0, 4)}`, score, timestamp: Date.now() });
               localStorage.setItem('mockLeaderboard', JSON.stringify(currentData));
-              
-              // Optimistically update local state to reflect change immediately
-              const sorted = currentData.sort((a, b) => b.score - a.score).slice(0, 10);
-              setData(sorted);
+              setData(currentData.sort((a, b) => b.score - a.score).slice(0, 10));
               return;
             }
-
-            // REAL: Save to Firestore
             try {
               await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'leaderboard'), {
                 name: `Learner ${user.uid.substr(0, 4)}`,
@@ -292,7 +279,7 @@
         return { data, saveScore };
       };
 
-      const useGameEngine = (onGameEnd) => {
+      const useGameEngine = (onGameEnd, gameData) => {
         const [questions, setQuestions] = useState([]);
         const [currentIndex, setCurrentIndex] = useState(0);
         const [score, setScore] = useState(0);
@@ -302,10 +289,10 @@
 
         const generateQuestions = useCallback(() => {
           const newQuestions = [];
-          const sourceData = getRandomItems(PHRASAL_VERBS, 10);
+          const sourceData = getRandomItems(gameData, 10);
           sourceData.forEach(item => {
             const isGapFill = Math.random() > 0.5;
-            const distractors = getRandomItems(PHRASAL_VERBS.filter(pv => pv.id !== item.id), 3).map(pv => pv.term);
+            const distractors = getRandomItems(gameData.filter(pv => pv.id !== item.id), 3).map(pv => pv.term);
 
             if (isGapFill && item.examples.length > 0) {
               const example = item.examples[0];
@@ -324,7 +311,7 @@
                   question: `What is the meaning of "${item.term}"?`,
                   correct: item.definition,
                   options: getRandomItems([...distractors.map(d => {
-                     const original = PHRASAL_VERBS.find(p => p.term === d);
+                     const original = gameData.find(p => p.term === d);
                      return original ? original.definition : "To do something.";
                   }), item.definition], 4),
                   explanation: `Correct! "${item.term}" means: ${item.definition}`
@@ -341,7 +328,7 @@
             }
           });
           return newQuestions;
-        }, []);
+        }, [gameData]);
 
         const startGame = () => {
           setQuestions(generateQuestions());
@@ -355,27 +342,45 @@
         const submitAnswer = (selected) => {
           const currentQ = questions[currentIndex];
           const isCorrect = selected === currentQ.correct;
+          
+          const correctItem = gameData.find(p => p.term === currentQ.correct);
+          // [UPDATED] Get up to 2 examples for the feedback
+          const examples = correctItem?.examples.slice(0, 2) || ["No example available."];
+
           if (isCorrect) {
             const streakBonus = Math.min(streak * 10, 50);
             setScore(s => s + 100 + streakBonus);
             setStreak(s => s + 1);
-            setFeedback({ type: 'correct', msg: 'Spot on! ' + (streak > 1 ? `Streak x${streak}!` : ''), selected });
+            setFeedback({ 
+              type: 'correct', 
+              msg: 'Spot on! ' + (streak > 1 ? `Streak x${streak}!` : ''), 
+              selected,
+              examples
+            });
           } else {
             setStreak(0);
-            setFeedback({ type: 'incorrect', msg: `Not quite. The correct answer was: "${currentQ.correct}"`, selected });
+            setFeedback({ 
+              type: 'incorrect', 
+              msg: `Not quite. The correct answer was: "${currentQ.correct}"`, 
+              selected,
+              examples
+            });
           }
-          setTimeout(() => {
-            setFeedback(null);
-            if (currentIndex < questions.length - 1) {
-              setCurrentIndex(c => c + 1);
-            } else {
-              setIsPlaying(false);
-              onGameEnd(score + (isCorrect ? 100 + Math.min(streak * 10, 50) : 0));
-            }
-          }, 2000);
+          
+          // [UPDATED] Removed setTimeout. Game waits for user to click next.
         };
 
-        return { questions, currentIndex, score, feedback, isPlaying, startGame, submitAnswer };
+        const nextQuestion = () => {
+          setFeedback(null);
+          if (currentIndex < questions.length - 1) {
+            setCurrentIndex(c => c + 1);
+          } else {
+            setIsPlaying(false);
+            onGameEnd(score); // Pass current score
+          }
+        };
+
+        return { questions, currentIndex, score, feedback, isPlaying, startGame, submitAnswer, nextQuestion };
       };
 
       /**
@@ -386,16 +391,41 @@
 
       function App() {
         const [view, setView] = useState('start');
+        const [gameData, setGameData] = useState(STATIC_DATA);
+        const [isFetching, setIsFetching] = useState(false);
         const user = useAuth();
         const { data: leaderboardData, saveScore } = useLeaderboard(user);
         
+        // Fetch dynamic content on mount
+        useEffect(() => {
+          const fetchDailyContent = async () => {
+            if (!window.backendUrl) return; 
+            try {
+              setIsFetching(true);
+              const res = await fetch(window.backendUrl);
+              if (res.ok) {
+                const dailyData = await res.json();
+                if (Array.isArray(dailyData) && dailyData.length > 0) {
+                  setGameData(dailyData);
+                  console.log("Loaded fresh daily content!");
+                }
+              }
+            } catch (e) {
+              console.warn("Using static fallback data:", e);
+            } finally {
+              setIsFetching(false);
+            }
+          };
+          fetchDailyContent();
+        }, []);
+
         const { 
           questions, currentIndex, score, feedback, isPlaying, 
-          startGame: engineStart, submitAnswer 
+          startGame: engineStart, submitAnswer, nextQuestion
         } = useGameEngine((finalScore) => {
           saveScore(finalScore);
           setView('result');
-        });
+        }, gameData);
 
         const handleStartGame = () => {
           engineStart();
@@ -404,7 +434,7 @@
 
         // --- SUB-VIEWS ---
         const StartView = () => (
-          <div className="text-center space-y-8 py-12 px-6">
+          <div className="text-center space-y-8 py-12 px-6 max-w-4xl mx-auto">
             <div className="space-y-4">
               <div className="inline-block p-4 bg-indigo-100 rounded-full mb-4">
                 <BookOpen className="w-12 h-12 text-indigo-600" />
@@ -413,16 +443,48 @@
               <p className="text-lg text-slate-600 max-w-md mx-auto">
                 Master the tricky uses of "put" in English. 10 questions, speed bonuses, and global leaderboards.
               </p>
+              
+              <div className="flex justify-center gap-2 text-xs font-semibold">
+                {isFetching ? (
+                  <span className="text-slate-400 flex items-center gap-1"><RefreshCw className="w-3 h-3 animate-spin"/> Checking for updates...</span>
+                ) : gameData === STATIC_DATA ? (
+                  <span className="text-slate-400">Using Offline Data</span>
+                ) : (
+                  <span className="text-emerald-600 flex items-center gap-1"><RefreshCw className="w-3 h-3"/> Daily Context Loaded</span>
+                )}
+              </div>
+
               {isMockMode && (
                 <p className="text-xs text-amber-600 bg-amber-50 inline-block px-3 py-1 rounded-full border border-amber-200">
                   Running in Local Mode (No Backend)
                 </p>
               )}
             </div>
-            <div className="flex flex-col sm:flex-row gap-4 justify-center">
+
+            <div className="flex flex-col sm:flex-row gap-4 justify-center mb-12">
               <Button onClick={handleStartGame} className="w-full sm:w-auto"><Play className="w-5 h-5" /> Start Quiz</Button>
               <Button variant="secondary" onClick={() => setView('learn')} className="w-full sm:w-auto"><BookOpen className="w-5 h-5" /> Study Sheet</Button>
               <Button variant="secondary" onClick={() => setView('leaderboard')} className="w-full sm:w-auto"><Trophy className="w-5 h-5" /> Leaderboard</Button>
+            </div>
+
+            {/* [NEW] Reading Passages Section */}
+            <div className="text-left bg-white rounded-2xl shadow-sm border border-slate-100 p-8">
+              <h3 className="text-xl font-bold text-slate-800 mb-6 flex items-center gap-2">
+                <Quote className="w-5 h-5 text-indigo-500" /> Mini-Stories: See them in action
+              </h3>
+              <div className="grid md:grid-cols-3 gap-6">
+                {READING_PASSAGES.map((passage, idx) => (
+                  <div key={idx} className="bg-slate-50 p-5 rounded-lg border border-slate-200 hover:border-indigo-300 transition-colors">
+                    <h4 className="font-bold text-indigo-900 mb-2 text-sm uppercase tracking-wide">{passage.title}</h4>
+                    <p className="text-slate-600 text-sm leading-relaxed whitespace-pre-line">
+                      {/* React way to render bold markdown roughly */}
+                      {passage.content.split('**').map((part, i) => 
+                        i % 2 === 1 ? <span key={i} className="font-bold text-indigo-600 bg-indigo-50 px-1 rounded">{part}</span> : part
+                      )}
+                    </p>
+                  </div>
+                ))}
+              </div>
             </div>
           </div>
         );
@@ -438,30 +500,31 @@
               </div>
               <ProgressBar current={currentIndex} total={questions.length} />
               <Card className="mb-6">
-                <div className="p-8">
-                  <h2 className="text-2xl font-bold text-slate-800 mb-6 leading-relaxed">{q.question}</h2>
-                  <div className="grid gap-3">
-                    {q.options.map((opt, idx) => (
-                      <button
-                        key={idx}
-                        onClick={() => !feedback && submitAnswer(opt)}
-                        disabled={!!feedback}
-                        className={`w-full text-left p-4 rounded-lg border-2 font-medium transition-all ${
-                          feedback 
-                            ? opt === q.correct 
-                              ? 'border-emerald-500 bg-emerald-50 text-emerald-700' 
-                              : opt === feedback.selected 
-                                ? 'border-red-500 bg-red-50 text-red-700'
-                                : 'border-slate-100 text-slate-400'
-                            : 'border-slate-200 hover:border-indigo-400 hover:bg-indigo-50 text-slate-700'
-                        }`}
-                      >
-                        {opt}
-                      </button>
-                    ))}
+                {!feedback && (
+                  <div className="p-8">
+                    <h2 className="text-2xl font-bold text-slate-800 mb-6 leading-relaxed">{q.question}</h2>
+                    <div className="grid gap-3">
+                      {q.options.map((opt, idx) => (
+                        <button
+                          key={idx}
+                          onClick={() => submitAnswer(opt)}
+                          className="w-full text-left p-4 rounded-lg border-2 font-medium transition-all border-slate-200 hover:border-indigo-400 hover:bg-indigo-50 text-slate-700"
+                        >
+                          {opt}
+                        </button>
+                      ))}
+                    </div>
                   </div>
-                </div>
-                {feedback && <FeedbackOverlay type={feedback.type} msg={feedback.msg} />}
+                )}
+                
+                {feedback && (
+                  <FeedbackOverlay 
+                    type={feedback.type} 
+                    msg={feedback.msg} 
+                    examples={feedback.examples}
+                    onNext={nextQuestion}
+                  />
+                )}
               </Card>
             </div>
           );
@@ -517,10 +580,14 @@
               <Button variant="outline" onClick={() => setView('start')}>Close</Button>
             </div>
             <div className="grid gap-4 pb-12">
-              {PHRASAL_VERBS.map(item => (
+              {gameData.map(item => (
                 <Card key={item.id} className="p-5 border-l-4 border-l-indigo-500">
-                  <h3 className="text-lg font-bold text-indigo-900 mb-1">{item.term}</h3>
-                  <p className="text-slate-600 italic mb-3 text-sm">{item.definition}</p>
+                  <div className="flex justify-between items-start">
+                    <div>
+                      <h3 className="text-lg font-bold text-indigo-900 mb-1">{item.term}</h3>
+                      <p className="text-slate-600 italic mb-3 text-sm">{item.definition}</p>
+                    </div>
+                  </div>
                   <div className="bg-slate-50 p-3 rounded text-sm text-slate-700">"{item.examples[0]}"</div>
                 </Card>
               ))}
@@ -535,12 +602,11 @@
             {view === 'result' && <ResultView />}
             {view === 'leaderboard' && <LeaderboardView />}
             {view === 'learn' && <LearnView />}
-            <div className="fixed bottom-4 text-slate-400 text-xs">MVP v1.0 • Refactored Architecture</div>
+            <div className="fixed bottom-4 text-slate-400 text-xs">MVP v1.2 • Stories & Manual Next</div>
           </div>
         );
       }
 
-      // Render the App
       const root = createRoot(document.getElementById('root'));
       root.render(<App />);
     </script>
