@@ -2,26 +2,18 @@ name = "the-uses-of-put"
 main = "worker.js"
 compatibility_date = "2024-01-01"
 
-# KV Namespace for storing game data
-# After creating the KV namespace in Cloudflare dashboard,
-# update the 'id' value with your actual namespace ID
-kv_namespaces = [
-  { binding = "GAME_DATA", id = "a45ee3d14ce64606adbae48429b9a9af" }
-]
+# KV Namespace (Keep your ID)
+[[kv_namespaces]]
+binding = "GAME_DATA"
+id = "a45ee3d14ce64606adbae48429b9a9af"
 
-# Environment variables (use Cloudflare dashboard for secrets)
 [vars]
 ENVIRONMENT = "production"
 
-# Cron trigger - runs daily at midnight UTC to refresh examples
 [triggers]
 crons = ["0 0 * * *"]
 
-# Optional: Custom domain configuration
-# Uncomment and configure if using a custom domain
-# [env.production]
-# route = "https://api.yourdomain.com/*"
-# ADD THIS RULE TO THE BOTTOM:
+# --- ADD THIS SECTION BELOW ---
 [[rules]]
 type = "Text"
 globs = ["**/*.html"]
