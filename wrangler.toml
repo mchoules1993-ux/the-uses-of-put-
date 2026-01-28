@@ -1,19 +1,13 @@
-name = "the-uses-of-put"
-main = "worker.js"
-compatibility_date = "2024-01-01"
-
-# KV Namespace (Keep your ID)
-[[kv_namespaces]]
-binding = "GAME_DATA"
-id = "a45ee3d14ce64606adbae48429b9a9af"
-
-[vars]
-ENVIRONMENT = "production"
-
-[triggers]
-crons = ["0 0 * * *"]
-
-# --- ADD THIS SECTION BELOW ---
-[[rules]]
-type = "Text"
-globs = ["**/*.html"]
+{
+  "name": "put-it-to-the-test-backend",
+  "main": "worker.js",
+  "compatibility_date": "2024-05-20",
+  "assets": {
+    "directory": "."
+  },
+  // We declare that this worker expects a secret, but we don't put the value here.
+  // You set the value via command line: npx wrangler secret put GEMINI_API_KEY
+  "observability": {
+    "enabled": true
+  }
+}
